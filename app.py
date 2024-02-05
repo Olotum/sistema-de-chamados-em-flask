@@ -35,15 +35,14 @@ else:
     )
 
     cursor = cnx.cursor()
-    cursor.execute('CREATE TABLE usuarios (id INT AUTO_INCREMENT PRIMARY KEY, nome VARCHAR(50), email VARCHAR(123), senha VARCHAR(30), cargo VARCHAR(50), status varchar(20));')
-    cursor.execute('CREATE TABLE tecnicos (id INT AUTO_INCREMENT PRIMARY KEY, nome VARCHAR(50), email VARCHAR(123), senha VARCHAR(30), cargo VARCHAR(50), status varchar(20), justificativa varchar(120), data_just_ini datetime, data_just_fin datetime);')
+    cursor.execute('CREATE TABLE usuarios (id INT AUTO_INCREMENT PRIMARY KEY, nome VARCHAR(50), email VARCHAR(123), senha VARCHAR(30), perfil VARCHAR(7), cargo VARCHAR(50), status varchar(20), justificativa varchar(120), data_just_ini datetime, data_just_fin datetime);')
     cursor.execute(
         'CREATE TABLE setores (id INT AUTO_INCREMENT PRIMARY KEY, nome VARCHAR(255));')
     cursor.execute('CREATE TABLE equipamentos (id INT AUTO_INCREMENT PRIMARY KEY, nome VARCHAR(50), id_setor int(6), marca VARCHAR(100), conservacao VARCHAR(30), status varchar(100), justificativa varchar(120), data_cadastro datetime);')
     cursor.execute(
         'CREATE TABLE status (id INT AUTO_INCREMENT PRIMARY KEY,  id_equipamento int(6), status varchar(100), date_modificacao datetime);')
     cursor.execute('CREATE TABLE chamados (id INT AUTO_INCREMENT PRIMARY KEY, id_usuario int(6), id_equipamento int(6), descricao VARCHAR(123), id_setor int(6), data_abertura datetime, id_tecnico int(6), data_fechamento datetime, urgencia varchar(20), solucao varchar(200));')
-    cursor.execute('ALTER TABLE chamados ADD CONSTRAINT fk_chamados_usuarios FOREIGN KEY (id_usuario) REFERENCES usuarios (id),ADD CONSTRAINT fk_chamados_tecnicos FOREIGN KEY (id_tecnico) REFERENCES tecnicos (id),ADD CONSTRAINT fk_chamados_equipamentos FOREIGN KEY (id_equipamento) REFERENCES equipamentos (id)')
+    cursor.execute('ALTER TABLE chamados ADD CONSTRAINT fk_chamados_usuarios FOREIGN KEY (id_usuario) REFERENCES usuarios (id), ADD CONSTRAINT fk_chamados_equipamentos FOREIGN KEY (id_equipamento) REFERENCES equipamentos (id)')
 
     cnx.commit()
     cnx.close()
@@ -53,14 +52,14 @@ app.config['SECRET_KEY']='TESTE'
 
 @app.route('/paginainicial')
 def pagina_inicial():
-    if not session.get('usuario_id') and not session.get('tecnico_id'):
+    if not session.get('usuario_id'):
         return redirect(url_for('pagina_login'))
     return render_template('paginainicial.html')
 
 
 @app.route('/chamados')
 def pagina_chamados():
-    if not session.get('usuario_id') and not session.get('tecnico_id'):
+    if not session.get('usuario_id'):
         return redirect(url_for('pagina_login'))
     cnx = mysql.connector.connect(
         host='127.0.0.1',
@@ -69,18 +68,18 @@ def pagina_chamados():
         database='chamadosti'
     )
     cursor = cnx.cursor()
-    if session.get('tecnico_id'):    
+    if session.get('perfil')=='tecnico':    
         cursor.execute('Select * from chamados')
         chamados = cursor.fetchall()
     else:
-        cursor.execute('Select * from chamados WHERE id = %s', (session.get('usuario_id'),))
+        cursor.execute('Select * from chamados WHERE id_usuario = %s', (session.get('usuario_id'),))
         chamados = cursor.fetchall()
     return render_template('chamados.html', chamados=chamados)
 
 
 @app.route('/usuarios')
 def pagina_usuarios():
-    if not session.get('usuario_id') and not session.get('tecnico_id'):
+    if not session.get('usuario_id'):
         return redirect(url_for('pagina_login'))
     cnx = mysql.connector.connect(
         host='127.0.0.1',
@@ -88,9 +87,9 @@ def pagina_usuarios():
         password='',
         database='chamadosti'
     )
-    if session.get('tecnico_id'):
+    if session.get('perfil')=='tecnico':
         cursor = cnx.cursor()
-        cursor.execute('SELECT * FROM usuarios')
+        cursor.execute('SELECT * FROM usuarios WHERE perfil = %s', ('usuario',))
         usuarios = cursor.fetchall()
         return render_template("usuarios.html", usuarios=usuarios)
     else:
@@ -103,8 +102,10 @@ def pagina_usuarios():
 
 @app.route('/tecnicos')
 def pagina_tecnicos():
-    if not session.get('tecnico_id'):
+    if not session.get('usuario_id'):
         return redirect(url_for('pagina_login'))
+    if session.get('perfil')!='tecnico':
+        return redirect(url_for('pagina_inicial'))
     cnx = mysql.connector.connect(
         host='127.0.0.1',
         user='root',
@@ -112,15 +113,17 @@ def pagina_tecnicos():
         database='chamadosti'
     )
     cursor = cnx.cursor()
-    cursor.execute('SELECT * FROM tecnicos')
+    cursor.execute('SELECT * FROM usuarios')
     tecnicos = cursor.fetchall()
     return render_template("tecnicos.html", tecnicos=tecnicos)
 
 
 @app.route('/setores')
 def pagina_setores():
-    if not session.get('tecnico_id'):
+    if not session.get('usuario_id'):
         return redirect(url_for('pagina_login'))
+    if session.get('perfil')!='tecnico':
+        return redirect(url_for('pagina_inicial'))
     cnx = mysql.connector.connect(
         host='127.0.0.1',
         user='root',
@@ -135,20 +138,22 @@ def pagina_setores():
 
 @app.route('/cadastro_usuario', methods=['POST', 'GET'],)
 def cadastro_usuario():
-    if not session.get('tecnico_id'):
+    if not session.get('usuario_id'):
         return redirect(url_for('pagina_login'))
+    if session.get('perfil')!='tecnico':
+        return redirect(url_for('pagina_inicial'))
     nome = request.form.get('nome')
     email = request.form.get('email')
-    cargo = request.form.get('cargo')
     senha = request.form.get('senha')
+    perfil = request.form.get('perfil')
     if request.method != 'POST':
         return render_template('cadastro_usuario.html', error='Método HTTP inválido.')
     if not nome:
         return render_template('cadastro_usuario.html', error='O nome é obrigatório.')
     if not email:
         return render_template('cadastro_usuario.html', error='O e-mail é obrigatório.')
-    if not cargo:
-        return render_template('cadastro_usuario.html', error='O cargo é obrigatória.')
+    if not perfil:
+        return render_template('cadastro_usuario.html', error='O perfil é obrigatória.')
     if not senha:
         return render_template('cadastro_usuario.html', error='A senha é obrigatória.')
     if len(senha) < 8:
@@ -167,7 +172,7 @@ def cadastro_usuario():
     cursor.close()
     cnx.close()
     if existe > 0:
-        return render_template('cadastro.html', error='O usuário já existe.')
+        return render_template('paginainicial.html', error='O usuário já existe.')
     else:
         try:
             cnx = mysql.connector.connect(
@@ -178,81 +183,26 @@ def cadastro_usuario():
             )
             cursor = cnx.cursor()
 
-            sql = 'INSERT INTO usuarios (nome, email, senha, cargo) values (%s, %s, %s, %s)'
-            values = (nome, email, senha, cargo)
+            sql = 'INSERT INTO usuarios (nome, email, senha, perfil) values (%s, %s, %s, %s)'
+            values = (nome, email, senha, perfil)
 
             cursor.execute(sql, list(values))
             cursor.close()
             cnx.commit()
-
-            return redirect(url_for('pagina_usuarios'))
-
+            if perfil=='usuario':
+                return redirect(url_for('pagina_usuarios'))
+            else:
+                return redirect(url_for('pagina_tecnicos'))
         except mysql.connector.Error as e:
-            return render_template('cadastro.html', error=str(e))
-
-
-@app.route('/cadastro_tecnico', methods=['POST', 'GET'])
-def cadastro_tecnico():
-    if not session.get('tecnico_id'):
-        return redirect(url_for('pagina_login'))
-    nome = request.form.get('nome')
-    email = request.form.get('email')
-    cargo = request.form.get('cargo')
-    senha = request.form.get('senha')
-    if request.method != 'POST':
-        return render_template('cadastro_tecnico.html', error='Método HTTP inválido.')
-    if not nome:
-        return render_template('cadastro_tecnico.html', error='O nome é obrigatório.')
-    if not email:
-        return render_template('cadastro_tecnico.html', error='O e-mail é obrigatório.')
-    if not cargo:
-        return render_template('cadastro_tecnico.html', error='O cargo é obrigatória.')
-    if not senha:
-        return render_template('cadastro_tecnico.html', error='A senha é obrigatória.')
-    if len(senha) < 8:
-        return render_template('cadastro_tecnico.html', error='A senha deve ter pelo menos 8 caracteres.')
-
-    cnx = mysql.connector.connect(
-        host='127.0.0.1',
-        user='root',
-        password='',
-        database='chamadosti'
-    )
-
-    cursor = cnx.cursor()
-    cursor.execute('SELECT COUNT(*) FROM tecnicos WHERE email = %s;', (email,))
-    existe = cursor.fetchone()[0]
-    cursor.close()
-    cnx.close()
-    if existe > 0:
-        return render_template('cadastro_tecnico.html', error='O tecnico já existe.')
-    else:
-        try:
-            cnx = mysql.connector.connect(
-                host='127.0.0.1',
-                user='root',
-                password='',
-                database='chamadosti'
-            )
-            cursor = cnx.cursor()
-
-            sql = 'INSERT INTO tecnicos (nome, email, senha, cargo) values (%s, %s, %s, %s)'
-            values = (nome, email, senha, cargo)
-
-            cursor.execute(sql, list(values))
-            cursor.close()
-            cnx.commit()
-
-            return redirect(url_for('pagina_tecnicos'))
-
-        except mysql.connector.Error as e:
-            return render_template('cadastro_tecnico.html', error=str(e))
+            return render_template('cadastro_usuario.html', error=str(e))
 
 
 @app.route('/cadastro_setor', methods=['POST', 'GET'])
 def cadastro_setor():
-    if not session.get('tecnico_id'):
+    if not session.get('usuario_id'):
         return redirect(url_for('pagina_login'))
+    if session.get('perfil')!='tecnico':
+        return redirect(url_for('pagina_inicial'))
     nome = request.form.get('nome')
     if request.method != 'POST':
         return render_template('cadastro_setor.html', error='Método HTTP inválido.')
@@ -294,8 +244,10 @@ def cadastro_setor():
         
 @app.route('/cadastro_chamado', methods=['POST', 'GET'])
 def cadastro_chamado():
-    if not session.get('tecnico_id'):
+    if not session.get('usuario_id'):
         return redirect(url_for('pagina_login'))
+    if session.get('perfil')!='usuario':
+        return redirect(url_for('pagina_inicial'))
     id_usuario = session.get('usuario_id')
     descricao = request.form.get('descricao')
     id_setor = request.form.get('setor')
@@ -334,8 +286,10 @@ def cadastro_chamado():
 
 @app.route('/cadastrochamado', methods=['POST', 'GET'])
 def pagina_cadastro_chamado():
-    if not session.get('usuario_id') and not session.get('tecnico_id'):
-        return render_template('pagina_login')
+    if not session.get('usuario_id'):
+        return redirect(url_for('pagina_login'))
+    if session.get('perfil')!='usuario':
+        return redirect(url_for('pagina_inicial'))
     cnx = mysql.connector.connect(
             host='127.0.0.1',
             user='root',
@@ -351,8 +305,10 @@ def pagina_cadastro_chamado():
 
 @app.route('/excluir_usuario/<id>', methods=['GET', 'POST'])
 def excluir_usuario(id):
-    if not session.get('tecnico_id'):
-        return render_template('pagina_login')
+    if not session.get('usuario_id'):
+        return redirect(url_for('pagina_login'))
+    if session.get('perfil')!='tecnico':
+        return redirect(url_for('pagina_inicial'))
     if not id.isdigit:
         return render_template('excluir_usuario', error='ID invalido')
     try:
@@ -373,8 +329,10 @@ def excluir_usuario(id):
 
 @app.route('/excluir_tecnico/<id>', methods=['GET', 'POST'])
 def excluir_tecnico(id):
-    if not session.get('tecnico_id'):
-        return render_template('pagina_login')
+    if not session.get('usuario_id'):
+        return redirect(url_for('pagina_login'))
+    if session.get('perfil')!='tecnico':
+        return redirect(url_for('pagina_inicial'))
     if not id.isdigit:
         return render_template('excluir_tecnico', error='ID invalido')
     try:
@@ -395,8 +353,10 @@ def excluir_tecnico(id):
 
 @app.route('/excluir_setor/<id>', methods=['GET', 'POST'])
 def excluir_setor(id):
-    if not session.get('tecnico_id'):
-        return render_template('pagina_login')
+    if not session.get('usuario_id'):
+        return redirect(url_for('pagina_login'))
+    if session.get('perfil')!='tecnico':
+        return redirect(url_for('pagina_inicial'))
     if not id.isdigit:
         return render_template('excluir_setor', error='ID invalido')
     try:
@@ -416,8 +376,8 @@ def excluir_setor(id):
     
 @app.route('/editarusuario/<id>', methods=['GET', 'POST'])
 def atualizarusuario(id):
-    if not session.get('usuario_id') and not session.get('tecnico_id'):
-        return render_template('pagina_login')
+    if not session.get('usuario_id'):
+        return redirect(url_for('pagina_login'))
  # Valida o ID do usuário
     if not id.isdigit():
         return render_template('editarusuario/<id>', error='ID inválido.')
@@ -440,7 +400,8 @@ def atualizarusuario(id):
     cursor.close()
     cnx.close()
 
-    # Processa o formulário
+    if dados_usuario[0]==session.get('usuario_id') and session.get('perfil')=='usuario':
+        return redirect(url_for('pagina_inicial'))
     if request.method == 'POST':
         nome = request.form.get('nome')
         email = request.form.get('email')
@@ -478,8 +439,10 @@ def atualizarusuario(id):
 
 @app.route('/editarchamado/<id>', methods=['GET', 'POST'])
 def atualizarchamado(id):
-    if not session.get('tecnico_id'):
-        return render_template('pagina_login')
+    if not session.get('usuario_id'):
+        return redirect(url_for('pagina_login'))
+    if session.get('perfil')!='tecnico':
+        return redirect(url_for('pagina_inicial'))
 
     if not id.isdigit():
         return render_template('editarusuario/<id>', error='ID inválido.')
@@ -533,6 +496,7 @@ def atualizarchamado(id):
 def pagina_login():
     session.clear()
     session.pop('usuario_id', None)
+    session.pop('perfil', None)
     return render_template("login.html")
 
 
@@ -541,7 +505,6 @@ def login():
   
   email = request.form.get('email')
   senha = request.form.get('senha')
-  tipo = request.form.get('tipo')
 
   # Validar as credenciais
   cnx = mysql.connector.connect(
@@ -550,37 +513,18 @@ def login():
      password='',
      database='chamadosti'
      )
-  if tipo=='usuario':
-    cursor = cnx.cursor()
-    cursor.execute("""
-                SELECT *
-                FROM usuarios
-                WHERE email = %s AND senha = %s;
-            """, (email, senha,))
-    usuario = cursor.fetchone()
-    cursor.close()
-    cnx.close()
-    if usuario:
+  cursor = cnx.cursor()
+  cursor.execute(' SELECT * FROM usuarios WHERE email = %s AND senha = %s;', (email, senha,))
+  usuario = cursor.fetchone()
+  cursor.close()
+  cnx.close()
+  if usuario:
         session['usuario_id'] = usuario[0]
+        session['perfil'] = usuario[4]
         return redirect(url_for('pagina_usuarios'))
-  if tipo=='tecnico':
-    cursor = cnx.cursor()
-    cursor.execute("""
-                SELECT *
-                FROM tecnicos
-                WHERE email = %s AND senha = %s;
-            """, (email, senha,))
-    tecnico = cursor.fetchone()
-    cursor.close()
-    cnx.close()
-    if tecnico:
-        session['tecnico_id'] = tecnico[0]
-        return redirect(url_for('pagina_usuarios'))
-
   else:
     # Login inválido
-    
-    return redirect(url_for('pagina_login'))
+        return redirect(url_for('pagina_login'))
 
 if __name__ == '__main__':
     app.run(debug=True)

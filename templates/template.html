@@ -31,10 +31,14 @@
                 <li class="dropdown">
                     <a class="dropbtn" href="#">Tabelas</a>
                     <div class="dropdown-content">
-                        <a href="{{url_for('pagina_chamados')}}">Chamados</a>
-                        <a href="{{url_for('pagina_tecnicos')}}">Técnicos</a>
-                        <a href="{{url_for('pagina_usuarios')}}">Usuários</a>
-                        <a href="{{url_for('pagina_setores')}}">Setores</a>
+                        <a class="navbar-brand1" href="{{url_for('pagina_usuarios')}}">Usuários</a>
+                        {% if session['perfil'] != 'usuario' %}
+                        <a class="navbar-brand1" href="{{url_for('pagina_tecnicos')}}">Técnicos</a>
+                        {% endif %}
+                        <a class="navbar-brand1" href="{{url_for('pagina_chamados')}}">Chamados</a>
+                        {% if session['perfil'] != 'usuario' %}
+                        <a class="navbar-brand1" href="{{url_for('pagina_setores')}}">Setores</a>
+                        {% endif %}
                     </div>
                 </li>
                 <div class="navbar-collapse">
