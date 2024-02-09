@@ -41,13 +41,13 @@ else:
     cursor.execute('CREATE TABLE equipamentos (id INT AUTO_INCREMENT PRIMARY KEY, nome VARCHAR(50), id_setor int(6), marca VARCHAR(100), conservacao VARCHAR(30), status varchar(100), justificativa varchar(120), data_cadastro datetime);')
     cursor.execute(
         'CREATE TABLE status (id INT AUTO_INCREMENT PRIMARY KEY,  id_equipamento int(6), status varchar(100), date_modificacao datetime);')
-    cursor.execute('CREATE TABLE chamados (id INT AUTO_INCREMENT PRIMARY KEY, id_usuario int(6), id_equipamento int(6), descricao VARCHAR(123), id_setor int(6), data_abertura datetime, id_tecnico int(6), data_fechamento datetime, urgencia varchar(20), solucao varchar(200));')
+    cursor.execute('CREATE TABLE chamados (id INT AUTO_INCREMENT PRIMARY KEY, id_usuario int(6), id_equipamento int(6), descricao VARCHAR(123), id_setor int(6), data_abertura datetime, id_tecnico int(6), observacao varchar(123), data_fechamento datetime, urgencia varchar(20), solucao varchar(200));')
     cursor.execute('ALTER TABLE chamados ADD CONSTRAINT fk_chamados_usuarios FOREIGN KEY (id_usuario) REFERENCES usuarios (id), ADD CONSTRAINT fk_chamados_equipamentos FOREIGN KEY (id_equipamento) REFERENCES equipamentos (id)')
 
     cnx.commit()
     cnx.close()
 app = Flask(__name__)
-app.config['SECRET_KEY']='TESTE'
+app.config['SECRET_KEY'] = 'TESTE'
 
 
 @app.route('/paginainicial')
@@ -68,11 +68,12 @@ def pagina_chamados():
         database='chamadosti'
     )
     cursor = cnx.cursor()
-    if session.get('perfil')=='tecnico':    
+    if session.get('perfil') == 'tecnico':
         cursor.execute('Select * from chamados')
         chamados = cursor.fetchall()
     else:
-        cursor.execute('Select * from chamados WHERE id_usuario = %s', (session.get('usuario_id'),))
+        cursor.execute('Select * from chamados WHERE id_usuario = %s',
+                       (session.get('usuario_id'),))
         chamados = cursor.fetchall()
     return render_template('chamados.html', chamados=chamados)
 
@@ -87,24 +88,25 @@ def pagina_usuarios():
         password='',
         database='chamadosti'
     )
-    if session.get('perfil')=='tecnico':
+    if session.get('perfil') == 'tecnico':
         cursor = cnx.cursor()
-        cursor.execute('SELECT * FROM usuarios WHERE perfil = %s', ('usuario',))
+        cursor.execute(
+            'SELECT * FROM usuarios WHERE perfil = %s', ('usuario',))
         usuarios = cursor.fetchall()
         return render_template("usuarios.html", usuarios=usuarios)
     else:
         cursor = cnx.cursor()
-        cursor.execute('SELECT * FROM usuarios WHERE id = %s', (session.get('usuario_id'),))
+        cursor.execute('SELECT * FROM usuarios WHERE id = %s',
+                       (session.get('usuario_id'),))
         usuarios = cursor.fetchall()
         return render_template("usuarios.html", usuarios=usuarios)
-        
 
 
 @app.route('/tecnicos')
 def pagina_tecnicos():
     if not session.get('usuario_id'):
         return redirect(url_for('pagina_login'))
-    if session.get('perfil')!='tecnico':
+    if session.get('perfil') != 'tecnico':
         return redirect(url_for('pagina_inicial'))
     cnx = mysql.connector.connect(
         host='127.0.0.1',
@@ -122,7 +124,7 @@ def pagina_tecnicos():
 def pagina_setores():
     if not session.get('usuario_id'):
         return redirect(url_for('pagina_login'))
-    if session.get('perfil')!='tecnico':
+    if session.get('perfil') != 'tecnico':
         return redirect(url_for('pagina_inicial'))
     cnx = mysql.connector.connect(
         host='127.0.0.1',
@@ -140,7 +142,7 @@ def pagina_setores():
 def cadastro_usuario():
     if not session.get('usuario_id'):
         return redirect(url_for('pagina_login'))
-    if session.get('perfil')!='tecnico':
+    if session.get('perfil') != 'tecnico':
         return redirect(url_for('pagina_inicial'))
     nome = request.form.get('nome')
     email = request.form.get('email')
@@ -165,7 +167,7 @@ def cadastro_usuario():
         password='',
         database='chamadosti'
     )
-    
+
     cursor = cnx.cursor()
     cursor.execute('SELECT COUNT(*) FROM usuarios WHERE email = %s;', (email,))
     existe = cursor.fetchone()[0]
@@ -189,7 +191,7 @@ def cadastro_usuario():
             cursor.execute(sql, list(values))
             cursor.close()
             cnx.commit()
-            if perfil=='usuario':
+            if perfil == 'usuario':
                 return redirect(url_for('pagina_usuarios'))
             else:
                 return redirect(url_for('pagina_tecnicos'))
@@ -201,7 +203,7 @@ def cadastro_usuario():
 def cadastro_setor():
     if not session.get('usuario_id'):
         return redirect(url_for('pagina_login'))
-    if session.get('perfil')!='tecnico':
+    if session.get('perfil') != 'tecnico':
         return redirect(url_for('pagina_inicial'))
     nome = request.form.get('nome')
     if request.method != 'POST':
@@ -241,12 +243,13 @@ def cadastro_setor():
 
         except mysql.connector.Error as e:
             return render_template('pagina_setores.html', error=str(e))
-        
+
+
 @app.route('/cadastro_chamado', methods=['POST', 'GET'])
 def cadastro_chamado():
     if not session.get('usuario_id'):
         return redirect(url_for('pagina_login'))
-    if session.get('perfil')!='usuario':
+    if session.get('perfil') != 'usuario':
         return redirect(url_for('pagina_inicial'))
     id_usuario = session.get('usuario_id')
     descricao = request.form.get('descricao')
@@ -284,18 +287,19 @@ def cadastro_chamado():
     except mysql.connector.Error as e:
         return render_template('cadastro_chamado.html', error=str(e))
 
+
 @app.route('/cadastrochamado', methods=['POST', 'GET'])
 def pagina_cadastro_chamado():
     if not session.get('usuario_id'):
         return redirect(url_for('pagina_login'))
-    if session.get('perfil')!='usuario':
+    if session.get('perfil') != 'usuario':
         return redirect(url_for('pagina_inicial'))
     cnx = mysql.connector.connect(
-            host='127.0.0.1',
-            user='root',
-            password='',
-            database='chamadosti'
-        )
+        host='127.0.0.1',
+        user='root',
+        password='',
+        database='chamadosti'
+    )
     cursor = cnx.cursor()
     cursor.execute('SELECT * FROM setores')
     setores = cursor.fetchall()
@@ -303,11 +307,12 @@ def pagina_cadastro_chamado():
     cnx.close()
     return render_template('cadastro_chamado.html', setores=setores)
 
+
 @app.route('/excluir_usuario/<id>', methods=['GET', 'POST'])
 def excluir_usuario(id):
     if not session.get('usuario_id'):
         return redirect(url_for('pagina_login'))
-    if session.get('perfil')!='tecnico':
+    if session.get('perfil') != 'tecnico':
         return redirect(url_for('pagina_inicial'))
     if not id.isdigit:
         return render_template('excluir_usuario', error='ID invalido')
@@ -331,7 +336,7 @@ def excluir_usuario(id):
 def excluir_tecnico(id):
     if not session.get('usuario_id'):
         return redirect(url_for('pagina_login'))
-    if session.get('perfil')!='tecnico':
+    if session.get('perfil') != 'tecnico':
         return redirect(url_for('pagina_inicial'))
     if not id.isdigit:
         return render_template('excluir_tecnico', error='ID invalido')
@@ -355,7 +360,7 @@ def excluir_tecnico(id):
 def excluir_setor(id):
     if not session.get('usuario_id'):
         return redirect(url_for('pagina_login'))
-    if session.get('perfil')!='tecnico':
+    if session.get('perfil') != 'tecnico':
         return redirect(url_for('pagina_inicial'))
     if not id.isdigit:
         return render_template('excluir_setor', error='ID invalido')
@@ -373,7 +378,8 @@ def excluir_setor(id):
         return redirect(url_for('pagina_setores'))
     except mysql.connector.Error as e:
         return render_template('excluir-setor.html', error=str(e))
-    
+
+
 @app.route('/editarusuario/<id>', methods=['GET', 'POST'])
 def atualizarusuario(id):
     if not session.get('usuario_id'):
@@ -385,11 +391,11 @@ def atualizarusuario(id):
         return render_template('paginainicial.html')
 
     # Obtém os dados do usuário do banco de dados
-    cnx = mysql.connector.connect( 
-            host='127.0.0.1',
-            user='root',
-            password='',
-            database='chamadosti')
+    cnx = mysql.connector.connect(
+        host='127.0.0.1',
+        user='root',
+        password='',
+        database='chamadosti')
     cursor = cnx.cursor()
     cursor.execute("""
         SELECT id, nome, email
@@ -400,7 +406,7 @@ def atualizarusuario(id):
     cursor.close()
     cnx.close()
 
-    if dados_usuario[0]==session.get('usuario_id') and session.get('perfil')=='usuario':
+    if dados_usuario[0] == session.get('usuario_id') and session.get('perfil') == 'usuario':
         return redirect(url_for('pagina_inicial'))
     if request.method == 'POST':
         nome = request.form.get('nome')
@@ -418,11 +424,11 @@ def atualizarusuario(id):
             flash('A senha é obrigatório.')
             return render_template('editarusuario/<id>', dados_usuario=dados_usuario)
         # Realiza a atualização no banco de dados
-        
-        cnx = mysql.connector.connect( host='127.0.0.1',
-            user='root',
-            password='',
-            database='chamadosti')
+
+        cnx = mysql.connector.connect(host='127.0.0.1',
+                                      user='root',
+                                      password='',
+                                      database='chamadosti')
         cursor = cnx.cursor()
         sql = 'UPDATE usuarios SET nome = %s, email = %s, senha=%s WHERE id = %s;'
         values = (nome, email, senha, id)
@@ -437,24 +443,25 @@ def atualizarusuario(id):
     # Exibe o formulário
     return render_template('editarusuario.html', id=id, usuario=dados_usuario)
 
+
 @app.route('/editarchamado/<id>', methods=['GET', 'POST'])
 def atualizarchamado(id):
     if not session.get('usuario_id'):
         return redirect(url_for('pagina_login'))
-    if session.get('perfil')!='tecnico':
+    if session.get('perfil') != 'tecnico':
         return redirect(url_for('pagina_inicial'))
 
     if not id.isdigit():
         return render_template('editarusuario/<id>', error='ID inválido.')
 
-    cnx = mysql.connector.connect( 
-            host='127.0.0.1',
-            user='root',
-            password='',
-            database='chamadosti')
+    cnx = mysql.connector.connect(
+        host='127.0.0.1',
+        user='root',
+        password='',
+        database='chamadosti')
     cursor = cnx.cursor()
     cursor.execute("""
-        SELECT `id`, `id_usuario`, `id_equipamento`, `descricao`, `id_setor`, `data_abertura`, `id_tecnico`, `data_fechamento`, `urgencia`, `solucao`
+        SELECT `id`, `id_usuario`, `id_equipamento`, `descricao`, `id_setor`, `data_abertura`, `id_tecnico`, `observacao` `data_fechamento`, `urgencia`, `solucao`
         FROM chamados
         WHERE id = %s;
     """, (id,))
@@ -462,13 +469,12 @@ def atualizarchamado(id):
     cursor.close()
     cnx.close()
 
-
     # Processa o formulário
     if request.method == 'POST':
         try:
             id_equipamento = request.form.get('id_equipamento')
             id_setor = request.form.get('id_setor')
-            urgencia = request.form.get('urgencia')
+            observacao = request.form.get('observacao')
             # Realiza a atualização no banco de dados
             # Realiza a atualização no banco de dados
             cnx = mysql.connector.connect(
@@ -478,8 +484,8 @@ def atualizarchamado(id):
                 database='chamadosti'
             )
             cursor = cnx.cursor()
-            sql = 'UPDATE chamados SET id_equipamento = %s, id_setor = %s, urgencia = %s WHERE id = %s;'
-            values = (id_equipamento, id_setor, urgencia, id)
+            sql = 'UPDATE chamados SET id_equipamento = %s, id_setor = %s, observacao = %s WHERE id = %s;'
+            values = (id_equipamento, id_setor, observacao, id)
             cursor.execute(sql, values)
             cnx.commit()
             cursor.close()
@@ -488,8 +494,88 @@ def atualizarchamado(id):
         except mysql.connector.Error as e:
             return render_template('paginainicial.html')
             # Redireciona para a página inicial
-    
+
     return render_template('editarchamado.html', id=id, chamado=dados_chamado)
+
+@app.route('/atender_chamado/<id>', methods=['POST', 'GET'])
+def atender_chamado(id):
+    if not session.get('usuario_id'):
+        return redirect(url_for('pagina_login'))
+    if session.get('perfil') != 'tecnico':
+        return redirect(url_for('pagina_inicial'))
+
+    if not str(id).isdigit():
+        return render_template('chamados/<id>', error='ID inválido.')
+    try:
+        cnx = mysql.connector.connect(
+            host='127.0.0.1',
+            user='root',
+            password='',
+            database='chamadosti')
+        cursor = cnx.cursor()
+        sql = 'UPDATE chamados SET id_tecnico = %s WHERE id = %s;'
+        values = (session.get('usuario_id'), id)
+        cursor.execute(sql, values)
+        cnx.commit()
+        cursor.close()
+        cnx.close()
+        return redirect(url_for('pagina_chamados'))
+    except mysql.connector.Error as e:
+        return render_template('paginainicial.html')
+    
+@app.route('/editarchamado/<id>', methods=['GET', 'POST'])
+def atualizarchamado(id):
+    if not session.get('usuario_id'):
+        return redirect(url_for('pagina_login'))
+    if session.get('perfil') != 'tecnico':
+        return redirect(url_for('pagina_inicial'))
+
+    if not id.isdigit():
+        return render_template('editarusuario/<id>', error='ID inválido.')
+
+    cnx = mysql.connector.connect(
+        host='127.0.0.1',
+        user='root',
+        password='',
+        database='chamadosti')
+    cursor = cnx.cursor()
+    cursor.execute("""
+        SELECT `id`, `id_usuario`, `id_equipamento`, `descricao`, `id_setor`, `data_abertura`, `id_tecnico`, `observacao` `data_fechamento`, `urgencia`, `solucao`
+        FROM chamados
+        WHERE id = %s;
+    """, (id,))
+    dados_chamado = cursor.fetchone()
+    cursor.close()
+    cnx.close()
+
+    # Processa o formulário
+    if request.method == 'POST':
+        try:
+            id_equipamento = request.form.get('id_equipamento')
+            id_setor = request.form.get('id_setor')
+            observacao = request.form.get('observacao')
+            # Realiza a atualização no banco de dados
+            # Realiza a atualização no banco de dados
+            cnx = mysql.connector.connect(
+                host='127.0.0.1',
+                user='root',
+                password='',
+                database='chamadosti'
+            )
+            cursor = cnx.cursor()
+            sql = 'UPDATE chamados SET id_equipamento = %s, id_setor = %s, observacao = %s WHERE id = %s;'
+            values = (id_equipamento, id_setor, observacao, id)
+            cursor.execute(sql, values)
+            cnx.commit()
+            cursor.close()
+            cnx.close()
+            return redirect(url_for('pagina_chamados'))
+        except mysql.connector.Error as e:
+            return render_template('paginainicial.html')
+            # Redireciona para a página inicial
+
+    return render_template('editarchamado.html', id=id, chamado=dados_chamado)
+
 
 
 @app.route('/', methods=['POST', 'GET'])
@@ -502,29 +588,31 @@ def pagina_login():
 
 @app.route('/validalogin', methods=['POST', 'GET'])
 def login():
-  
-  email = request.form.get('email')
-  senha = request.form.get('senha')
 
-  # Validar as credenciais
-  cnx = mysql.connector.connect(
-     host='127.0.0.1',
-     user='root',
-     password='',
-     database='chamadosti'
-     )
-  cursor = cnx.cursor()
-  cursor.execute(' SELECT * FROM usuarios WHERE email = %s AND senha = %s;', (email, senha,))
-  usuario = cursor.fetchone()
-  cursor.close()
-  cnx.close()
-  if usuario:
+    email = request.form.get('email')
+    senha = request.form.get('senha')
+
+    # Validar as credenciais
+    cnx = mysql.connector.connect(
+        host='127.0.0.1',
+        user='root',
+        password='',
+        database='chamadosti'
+    )
+    cursor = cnx.cursor()
+    cursor.execute(
+        ' SELECT * FROM usuarios WHERE email = %s AND senha = %s;', (email, senha,))
+    usuario = cursor.fetchone()
+    cursor.close()
+    cnx.close()
+    if usuario:
         session['usuario_id'] = usuario[0]
         session['perfil'] = usuario[4]
         return redirect(url_for('pagina_usuarios'))
-  else:
-    # Login inválido
+    else:
+        # Login inválido
         return redirect(url_for('pagina_login'))
+
 
 if __name__ == '__main__':
     app.run(debug=True)

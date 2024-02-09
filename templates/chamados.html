@@ -18,6 +18,7 @@ Chamados TI
       <th>Setor</th>
       <th>Data Abertura</th>
       <th>Técnico</th>
+      <th>Observação</th>
       <th>Data Fechamento</th>
       <th>Solução</th>
       <th>Ações</th>
@@ -46,17 +47,22 @@ Chamados TI
       {%else %}
       <td>{{ chamado[8] }}</td>
       {% endif %}
+      {% if chamado[9] == None %}
+      <td>{{""}}</td>
+      {%else %}
+      <td>{{ chamado[9] }}</td>
+      {% endif %}
       <td>
         <a href="/editarchamado/{{ chamado[0]}}" class="editar">Editar</a>
       </td>
       <td>
         {% if chamado[6] == None%}
-        <button class="atender">Atender</button>
-        {% elif chamado[7] != None%}
-        <h1>Fechado</h1>
-        {%else%}
-        <button>Em Atendimento</button>
-        {% endif %}
+        <a href="/atender_chamado/{{ chamado[0]}}" class="atender">Atender</button>
+          {% elif chamado[8] != None%}
+          <h1>Fechado</h1>
+          {%else%}
+          <button>Em Atendimento</button>
+          {% endif %}
 
       </td>
     </tr>
